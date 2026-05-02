@@ -4,7 +4,6 @@
 #include "doomgeneric.h"
 #include "doomkeys.h"
 #include "keycodes.h"
-#include "m_argv.h"
 #include "stubs.h"
 
 #include <ctype.h>
@@ -13,15 +12,6 @@
 #include <unistd.h>
 
 #include <stdbool.h>
-
-#define KEYQUEUE_SIZE 16
-
-static unsigned short s_KeyQueue[KEYQUEUE_SIZE];
-static unsigned int s_KeyQueueWriteIndex = 0;
-static unsigned int s_KeyQueueReadIndex = 0;
-
-char *key_press_reg = (char *)(long)REG_KEY_PRESS_LOC;
-char *key_code_reg = (char *)(long)REG_KEY_CODE_LOC;
 
 static unsigned char convertToDoomKey(unsigned int key) {
   switch (key) {
@@ -44,18 +34,15 @@ static unsigned char convertToDoomKey(unsigned int key) {
     key = KEY_DOWNARROW;
     break;
   case MYKEY_LCTRL:
-  case MYKEY_RCTRL:
     key = KEY_FIRE;
     break;
   case MYKEY_SPACE:
     key = KEY_USE;
     break;
   case MYKEY_LSHIFT:
-  case MYKEY_RSHIFT:
     key = KEY_RSHIFT;
     break;
   case MYKEY_LALT:
-  case MYKEY_RALT:
     key = KEY_LALT;
     break;
   case MYKEY_F2:
@@ -89,7 +76,6 @@ static unsigned char convertToDoomKey(unsigned int key) {
     key = KEY_F11;
     break;
   case MYKEY_EQUALS:
-  case MYKEY_PLUS:
     key = KEY_EQUALS;
     break;
   case MYKEY_MINUS:
@@ -103,27 +89,16 @@ static unsigned char convertToDoomKey(unsigned int key) {
   return key;
 }
 
-static void addKeyToQueue(int pressed, unsigned int keyCode) {
-  unsigned char key = convertToDoomKey(keyCode);
-
-  unsigned short keyData = (pressed << 8) | key;
-
-  s_KeyQueue[s_KeyQueueWriteIndex] = keyData;
-  s_KeyQueueWriteIndex++;
-  s_KeyQueueWriteIndex %= KEYQUEUE_SIZE;
-}
+static unsigned char *sp_KeyQueueWriteIndex =
+    (unsigned char *)(long)QUEUE_WRITE_IDX;
+static unsigned char *sp_KeyQueueReadIndex =
+    (unsigned char *)(long)QUEUE_READ_IDX;
+;
+static unsigned short *sp_Queue = (unsigned short *)(long)QUEUE_START;
 
 void DG_Init() {}
 
-void DG_DrawFrame() {
-  _render_frame();
-
-  if (*key_press_reg == 1) {
-    addKeyToQueue(1, *key_code_reg);
-  } else if (*key_press_reg == 0) {
-    addKeyToQueue(0, *key_code_reg);
-  }
-}
+void DG_DrawFrame() { _render_frame(); }
 
 void DG_SleepMs(uint32_t ms) { usleep(ms * 1000); }
 
@@ -137,16 +112,19 @@ uint32_t DG_GetTicksMs() {
 }
 
 int DG_GetKey(int *pressed, unsigned char *doomKey) {
-  if (s_KeyQueueReadIndex == s_KeyQueueWriteIndex) {
+  if (*sp_KeyQueueReadIndex == *sp_KeyQueueWriteIndex) {
     // key queue is empty
     return 0;
   } else {
-    unsigned short keyData = s_KeyQueue[s_KeyQueueReadIndex];
-    s_KeyQueueReadIndex++;
-    s_KeyQueueReadIndex %= KEYQUEUE_SIZE;
+    unsigned short keyData = sp_Queue[*sp_KeyQueueReadIndex];
+    (*sp_KeyQueueReadIndex)++;
+    *sp_KeyQueueReadIndex %= 16;
 
     *pressed = keyData >> 8;
-    *doomKey = keyData & 0xFF;
+    *doomKey = convertToDoomKey(keyData & 0xFF) & 0xFF;
+
+    // printf("read idx: %d, pressed: %d, doomKey: %d\n", *sp_KeyQueueReadIndex,
+    //        *pressed, *doomKey);
 
     return 1;
   }
@@ -156,8 +134,8 @@ int DG_GetKey(int *pressed, unsigned char *doomKey) {
 
 void DG_SetWindowTitle(const char *title) { (void)title; }
 
-void _start(int argc, char **argv) {
-  doomgeneric_Create(argc, argv);
+void _start(void) {
+  doomgeneric_Create(0, NULL);
 
   for (int i = 0;; i++) {
     doomgeneric_Tick();
