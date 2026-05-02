@@ -5,8 +5,10 @@
 *.log
 *.user
 *~
+*.wad
 .vs/
 Debug/
 Release/
 Build/
 doomgeneric.map
+doomgeneric/doomgeneric
