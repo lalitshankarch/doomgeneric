@@ -13,10 +13,10 @@ endif
 
 
 CC=riscv64-unknown-elf-gcc  # gcc or g++
-CFLAGS+=-ffreestanding -nostdlib -O2
+CFLAGS+=-nostartfiles -O2
 LDFLAGS+=-T link.ld
-CFLAGS+=-march=rv32i -mabi=ilp32 -DNORMALUNIX -DLINUX -DSNDSERV -D_DEFAULT_SOURCE  # -DUSEASM
-LIBS+=-lc -lgcc -lm
+CFLAGS+=-march=rv32im -mabi=ilp32 -DNORMALUNIX -DLINUX -DSNDSERV -D_DEFAULT_SOURCE  # -DUSEASM
+LIBS+=
 
 # subdirectory for objects
 OBJDIR=build
